@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SDS Generator – Lattafa</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #c9a84c; --gold-light: #e8d5a0; --dark: #0f0e0b;
+    --dark2: #1a1814; --cream: #f5f0e8; --text: #d4cfc4;
+    --border: rgba(201,168,76,0.25);
+  }
+  body { background: var(--dark); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 20px 48px; }
+  .container { width: 100%; max-width: 420px; }
+  .logo { text-align: center; margin-bottom: 40px; }
+  .logo h1 { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 28px; letter-spacing: 6px; color: var(--gold); text-transform: uppercase; }
+  .logo p { font-size: 11px; letter-spacing: 3px; color: rgba(201,168,76,0.5); text-transform: uppercase; margin-top: 4px; }
+  .divider { display: flex; align-items: center; gap: 12px; margin: 0 auto 40px; width: 80%; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .divider span { color: var(--gold); font-size: 14px; opacity: 0.6; }
+  .card { background: var(--dark2); border: 1px solid var(--border); border-radius: 16px; padding: 32px 28px; position: relative; overflow: hidden; }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+  label { display: block; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; font-weight: 500; }
+  input { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; font-size: 17px; font-family: 'Cormorant Garamond', serif; color: var(--cream); outline: none; transition: border-color 0.3s; -webkit-appearance: none; }
+  input::placeholder { color: rgba(212,207,196,0.25); font-style: italic; }
+  input:focus { border-color: var(--gold); background: rgba(201,168,76,0.06); }
+  .hint { margin-top: 10px; font-size: 11px; color: rgba(212,207,196,0.4); }
+  .btn { width: 100%; margin-top: 28px; padding: 18px; background: linear-gradient(135deg, #c9a84c, #a8862e); border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase; color: #0f0e0b; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .btn:active { opacity: 0.85; }
+  .btn:disabled { opacity: 0.5; }
+  .success-msg { display: none; margin-top: 20px; padding: 14px 18px; background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3); border-radius: 10px; font-size: 13px; color: var(--gold-light); text-align: center; line-height: 1.5; }
+  .success-msg.show { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div style="font-size:32px;margin-bottom:8px">🕌</div>
+    <h1>Lattafa</h1>
+    <p>SDS Generator</p>
+  </div>
+  <div class="divider"><span>✦</span></div>
+  <div class="card">
+    <label for="perfumeName">Nom du parfum</label>
+    <input type="text" id="perfumeName" placeholder="ex: Ambre Rouge Riiffs…" autocomplete="off" autocorrect="off" spellcheck="false">
+    <p class="hint">100 ml · composition générique · 16 sections GHS</p>
+    <button class="btn" id="generateBtn" onclick="generateSDS()">Générer le SDS PDF</button>
+    <div class="success-msg" id="successMsg">✓ PDF généré — vérifie tes téléchargements.</div>
+  </div>
+</div>
+<script>
+const { jsPDF } = window.jspdf;
+function generateSDS() {
+  const nameInput = document.getElementById('perfumeName');
+  const productName = nameInput.value.trim();
+  if (!productName) { nameInput.focus(); nameInput.style.borderColor='#e74c3c'; setTimeout(()=>nameInput.style.borderColor='',1200); return; }
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true; btn.textContent = 'Génération…';
+  setTimeout(() => {
+    try { buildPDF(productName); document.getElementById('successMsg').classList.add('show'); }
+    catch(e) { alert('Erreur: ' + e.message); }
+    btn.disabled = false; btn.textContent = 'Générer le SDS PDF';
+  }, 300);
+}
+function buildPDF(productName) {
+  const doc = new jsPDF({orientation:'p',unit:'mm',format:'a4'});
+  const W=210,H=297,ml=18,mr=18,cw=W-ml-mr;
+  let y=18;
+  const darkBg=[44,62,80],altRow=[244,246,247],borderCol=[189,195,199];
+  function checkPage(need){if(y+need>H-15){doc.addPage();y=18;}}
+  function sectionHeader(num,title){checkPage(10);doc.setFillColor(...darkBg);doc.rect(ml,y,cw,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.text(`  SECTION ${num}: ${title.toUpperCase()}`,ml+2,y+5.5);doc.setTextColor(0,0,0);y+=10;}
+  function body(text,indent=0){checkPage(6);doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(50,50,50);const lines=doc.splitTextToSize(text,cw-indent-2);doc.text(lines,ml+indent,y);y+=lines.length*4.5+1;}
+  function bold(text,indent=0){checkPage(6);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(30,30,30);const lines=doc.splitTextToSize(text,cw-indent-2);doc.text(lines,ml+indent,y);y+=lines.length*4.5+1;}
+  function space(n=4){y+=n;}
+  function tableRow(cols,widths,rowIndex,isHeader=false){checkPage(8);let x=ml;const rowH=7;cols.forEach((cell,i)=>{const bg=isHeader?darkBg:(rowIndex%2===0?[255,255,255]:altRow);doc.setFillColor(...bg);doc.rect(x,y,widths[i],rowH,'F');doc.setDrawColor(...borderCol);doc.rect(x,y,widths[i],rowH,'S');doc.setFont('helvetica',isHeader?'bold':'normal');doc.setFontSize(8);doc.setTextColor(isHeader?255:50,isHeader?255:50,isHeader?255:50);const lines=doc.splitTextToSize(String(cell),widths[i]-3);doc.text(lines,x+2,y+4.5);x+=widths[i];});y+=rowH;}
+  // HEADER
+  doc.setFillColor(...darkBg);doc.rect(0,0,W,22,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('SAFETY DATA SHEET (SDS)',W/2,10,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('According to GHS / ISO 11014',W/2,16,{align:'center'});y=28;
+  // Info
+  doc.setFillColor(244,246,247);doc.rect(ml,y,cw,12,'F');doc.setDrawColor(...borderCol);doc.rect(ml,y,cw,12,'S');doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(30,30,30);doc.text('Product Name:',ml+2,y+5);doc.setFont('helvetica','normal');doc.text(productName,ml+32,y+5);doc.setFont('helvetica','bold');doc.text('Version:',ml+2,y+9.5);doc.setFont('helvetica','normal');doc.text('1.0',ml+32,y+9.5);doc.setFont('helvetica','bold');doc.text('SDS Date:',W/2+2,y+5);doc.setFont('helvetica','normal');doc.text('2024-01-01',W/2+22,y+5);y+=16;
+  sectionHeader(1,'Identification of the Substance/Mixture and the Company');
+  body(`Product Name: ${productName}`);body('Product Type: Eau de Parfum — For external use only');body('Net Volume: 100 ml');body('Intended Use: Cosmetic fragrance product for personal use');body('Manufacturer: Lattafa Perfumes, UAE');body('Contact: contact@lattafaperfumes.com | +33 751 100 237');space();
+  sectionHeader(2,'Hazard Identification');
+  bold('GHS Classification:');body('• Flammable Liquid – Category 3 (H226)',3);body('• Skin Sensitization – Category 1 (H317)',3);body('• Eye Irritation – Category 2 (H319)',3);space(2);bold('Hazard Statements:');body('H226 – Flammable liquid and vapour',3);body('H317 – May cause an allergic skin reaction',3);body('H319 – Causes serious eye irritation',3);space(2);bold('Precautionary Statements:');body('P102 – Keep out of reach of children',3);body('P210 – Keep away from heat, sparks, open flames and hot surfaces',3);body('P264 – Wash hands thoroughly after handling',3);body('P280 – Wear protective gloves/eye protection if handling in large quantities',3);space();
+  sectionHeader(3,'Composition / Information on Ingredients');
+  const compW=[55,38,30];tableRow(['Ingredient','CAS Number','% (approx.)'],compW,0,true);[['Alcohol Denat. (Ethanol)','64-17-5','70-85%'],['Aqua (Water)','7732-18-5','5-15%'],['Parfum (Fragrance)','N/A','5-20%'],['Limonene','5989-27-5','< 1%'],['Linalool','78-70-6','< 1%'],['Coumarin','91-64-5','< 0.5%']].forEach((r,i)=>tableRow(r,compW,i));space();
+  sectionHeader(4,'First Aid Measures');
+  body('Inhalation: Move to fresh air. Seek medical attention if symptoms persist.');body('Skin contact: Wash with soap and water. Remove contaminated clothing. Consult a doctor if irritation develops.');body('Eye contact: Rinse immediately with plenty of water for at least 15 minutes. Seek medical advice.');body('Ingestion: Do NOT induce vomiting. Rinse mouth with water. Seek immediate medical attention.');space();
+  sectionHeader(5,'Fire-Fighting Measures');
+  body('Suitable extinguishing media: CO2, dry powder, foam, water spray.');body('Unsuitable extinguishing media: Direct water jet.');body('Special hazards: Flammable vapours may form. Keep containers cool with water spray.');body('Protective equipment: Self-contained breathing apparatus and full protective gear.');space();
+  sectionHeader(6,'Accidental Release Measures');
+  body('Personal precautions: Remove ignition sources. Ensure adequate ventilation. Avoid contact with skin and eyes.');body('Environmental precautions: Prevent entry into drains, sewers or water courses.');body('Clean-up methods: Absorb with inert material (sand, vermiculite). Collect in sealed containers for disposal.');space();
+  sectionHeader(7,'Handling and Storage');
+  body('Handling: Keep away from heat and ignition sources. Avoid breathing vapours. Use in well-ventilated areas.');body('Storage: Store in a cool, dry, well-ventilated place away from direct sunlight. Keep container tightly closed. Store at 5-30 degrees C.');space();
+  sectionHeader(8,'Exposure Controls / Personal Protection');
+  body('Engineering measures: Ensure good ventilation. Use local exhaust if necessary.');body('Eyes: Safety glasses if risk of splashing.');body('Skin: Gloves recommended for prolonged contact.');body('Respiratory: Not required under normal use conditions.');space();
+  sectionHeader(9,'Physical and Chemical Properties');
+  const physW=[50,73];[['Appearance','Clear to slightly coloured liquid'],['Odour','Characteristic fragrance'],['pH','5.5 - 7.5'],['Flash point','~24 degrees C (closed cup)'],['Boiling point','~78 degrees C'],['Vapour pressure','~59 hPa at 20 degrees C'],['Density','~0.85-0.92 g/cm3'],['Solubility in water','Miscible'],['Evaporation rate','Higher than ether']].forEach((r,i)=>tableRow(r,physW,i));space();
+  sectionHeader(10,'Stability and Reactivity');
+  body('Stability: Stable under normal storage conditions.');body('Conditions to avoid: Heat, sparks, open flames, direct sunlight.');body('Incompatible materials: Strong oxidising agents.');body('Hazardous decomposition: Carbon monoxide (CO), carbon dioxide (CO2) upon combustion.');space();
+  sectionHeader(11,'Toxicological Information');
+  body('Acute toxicity: Low toxicity by skin contact. May cause irritation.');body('Skin sensitization: May cause allergic skin reaction in sensitive individuals (due to fragrance components).');body('Eye irritation: Causes serious eye irritation.');body('Carcinogenicity / Mutagenicity / Reproductive toxicity: No data available indicating such effects.');space();
+  sectionHeader(12,'Ecological Information');
+  body('Ecotoxicity: Ethanol is readily biodegradable. Fragrance components may have aquatic toxicity at high concentrations.');body('Persistence: Ethanol is readily biodegradable.');body('Bioaccumulative potential: Not expected to bioaccumulate.');space();
+  sectionHeader(13,'Disposal Considerations');
+  body('Dispose of contents/container in accordance with local regulations. Do not pour down drains. Contact your local waste disposal authority for guidance.');space();
+  sectionHeader(14,'Transport Information');
+  const transW=[22,22,55,22,22];tableRow(['','UN No.','Proper Shipping Name','Class','PG'],transW,0,true);[['Road (ADR)','UN1266','Perfumery Products','3','III'],['Sea (IMDG)','UN1266','Perfumery Products','3','III'],['Air (IATA)','UN1266','Perfumery Products','3','III']].forEach((r,i)=>tableRow(r,transW,i));space();
+  sectionHeader(15,'Regulatory Information');
+  body('This product complies with EU Cosmetics Regulation (EC) No 1223/2009 and applicable GHS/CLP regulations.');body('Allergens listed in accordance with EU Directive 2003/15/EC and IFRA standards.');space();
+  sectionHeader(16,'Other Information');
+  body('Prepared by: Regulatory Affairs Department');body('Date of issue: January 2024');body('Disclaimer: The information provided in this SDS is correct to the best of our knowledge at the date of publication.');
+  // Footer
+  const totalPages=doc.getNumberOfPages();for(let p=1;p<=totalPages;p++){doc.setPage(p);doc.setDrawColor(...borderCol);doc.line(ml,H-12,W-mr,H-12);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(150,150,150);doc.text(`SDS - ${productName} | Lattafa Perfumes UAE | Page ${p} of ${totalPages}`,W/2,H-7,{align:'center'});}
+  const filename='SDS_'+productName.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'')+'.pdf';
+  doc.save(filename);
+}
+document.getElementById('perfumeName').addEventListener('keydown',function(e){if(e.key==='Enter')generateSDS();});
+</script>
+</body>
+</html>
